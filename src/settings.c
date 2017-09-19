@@ -5,12 +5,13 @@
  * a Linking Exception. For full terms see the included COPYING file.
  */
 
+#include "common.h"
+
 #ifdef GIT_OPENSSL
 # include <openssl/err.h>
 #endif
 
 #include <git2.h>
-#include "common.h"
 #include "sysdir.h"
 #include "cache.h"
 #include "global.h"
@@ -228,8 +229,8 @@ int git_libgit2_opts(int key, ...)
 		git_smart__ofs_delta_enabled = (va_arg(ap, int) != 0);
 		break;
 
-	case GIT_OPT_ENABLE_SYNCHRONOUS_OBJECT_CREATION:
-		git_object__synchronous_writing = (va_arg(ap, int) != 0);
+	case GIT_OPT_ENABLE_FSYNC_GITDIR:
+		git_repository__fsync_gitdir = (va_arg(ap, int) != 0);
 		break;
 
 	case GIT_OPT_GET_WINDOWS_SHAREMODE:

@@ -5,9 +5,9 @@
  * a Linking Exception. For full terms see the included COPYING file.
  */
 
-#include <assert.h>
-
 #include "checkout.h"
+
+#include <assert.h>
 
 #include "git2/repository.h"
 #include "git2/refs.h"
@@ -370,10 +370,8 @@ static int checkout_action_wd_only(
 			 */
 			const git_index_entry *e = git_index_get_byindex(data->index, pos);
 
-			if (e != NULL && data->diff->pfxcomp(e->path, wd->path) == 0) {
-				notify = GIT_CHECKOUT_NOTIFY_DIRTY;
-				remove = ((data->strategy & GIT_CHECKOUT_FORCE) != 0);
-			}
+			if (e != NULL && data->diff->pfxcomp(e->path, wd->path) == 0)
+				return git_iterator_advance_into(wditem, workdir);
 		}
 	}
 

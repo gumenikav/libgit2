@@ -7,6 +7,8 @@
 #ifndef INCLUDE_repository_h__
 #define INCLUDE_repository_h__
 
+#include "common.h"
+
 #include "git2/common.h"
 #include "git2/oid.h"
 #include "git2/odb.h"
@@ -30,6 +32,8 @@
 
 /* Default DOS-compatible 8.3 "short name" for a git repository, "GIT~1" */
 #define GIT_DIR_SHORTNAME "GIT~1"
+
+extern bool git_repository__fsync_gitdir;
 
 /** Cvar cache identifiers */
 typedef enum {

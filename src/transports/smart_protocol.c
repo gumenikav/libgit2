@@ -4,6 +4,9 @@
  * This file is part of libgit2, distributed under the GNU GPL v2 with
  * a Linking Exception. For full terms see the included COPYING file.
  */
+
+#include "common.h"
+
 #include "git2.h"
 #include "git2/odb_backend.h"
 
@@ -325,7 +328,8 @@ static int wait_while_ack(gitno_buffer *buf)
 
 		if (pkt->type == GIT_PKT_ACK &&
 		    (pkt->status != GIT_ACK_CONTINUE &&
-		     pkt->status != GIT_ACK_COMMON)) {
+		     pkt->status != GIT_ACK_COMMON &&
+		     pkt->status != GIT_ACK_READY)) {
 			git__free(pkt);
 			return 0;
 		}
