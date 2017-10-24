@@ -2,6 +2,11 @@ IF(DEBUG_POOL)
 	SET(GIT_DEBUG_POOL 1)
 ENDIF()
 
+# Add the features.h file as a dummy. This is required for Xcode
+# to successfully build the libgit2 library when using only
+# object libraries.
+SET(LIBGIT2_OBJECTS "${CMAKE_CURRENT_BINARY_DIR}/git2/sys/features.h")
+
 # This variable will contain the libraries we need to put into
 # libgit2.pc's Requires.private. That is, what we're linking to or
 # what someone who's statically linking us needs to link to.
@@ -13,8 +18,8 @@ SET(LIBGIT2_PC_LIBS "")
 
 SET(LIBGIT2_INCLUDES
 	"${CMAKE_CURRENT_BINARY_DIR}"
-	"${CMAKE_SOURCE_DIR}/src"
-	"${CMAKE_SOURCE_DIR}/include")
+	"${libgit2_SOURCE_DIR}/src"
+	"${libgit2_SOURCE_DIR}/include")
 SET(LIBGIT2_LIBS "")
 SET(LIBGIT2_LIBDIRS "")
 
@@ -124,9 +129,9 @@ IF (WIN32 AND WINHTTP)
 	# Since MinGW does not come with headers or an import library for winhttp,
 	# we have to include a private header and generate our own import library
 	IF (MINGW)
-		ADD_SUBDIRECTORY("${CMAKE_SOURCE_DIR}/deps/winhttp" "${CMAKE_BINARY_DIR}/deps/winhttp")
+		ADD_SUBDIRECTORY("${libgit2_SOURCE_DIR}/deps/winhttp" "${libgit2_BINARY_DIR}/deps/winhttp")
 		LIST(APPEND LIBGIT2_LIBS winhttp)
-		LIST(APPEND LIBGIT2_INCLUDES "${CMAKE_SOURCE_DIR}/deps/winhttp")
+		LIST(APPEND LIBGIT2_INCLUDES "${libgit2_SOURCE_DIR}/deps/winhttp")
 		LIST(APPEND LIBGIT2_LIBDIRS ${LIBWINHTTP_PATH})
 	ELSE()
 		LIST(APPEND LIBGIT2_LIBS "winhttp")
@@ -179,9 +184,9 @@ ENDIF()
 
 # Include POSIX regex when it is required
 IF(WIN32 OR AMIGA OR CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
-	ADD_SUBDIRECTORY("${CMAKE_SOURCE_DIR}/deps/regex" "${CMAKE_BINARY_DIR}/deps/regex")
-	LIST(APPEND LIBGIT2_INCLUDES "${CMAKE_SOURCE_DIR}/deps/regex")
-	LIST(APPEND LIBGIT2_LIBS regex)
+	ADD_SUBDIRECTORY("${libgit2_SOURCE_DIR}/deps/regex" "${libgit2_BINARY_DIR}/deps/regex")
+	LIST(APPEND LIBGIT2_INCLUDES "${libgit2_SOURCE_DIR}/deps/regex")
+	LIST(APPEND LIBGIT2_OBJECTS $<TARGET_OBJECTS:regex>)
 ENDIF()
 
 # Optional external dependency: http-parser
@@ -192,9 +197,9 @@ IF (USE_EXT_HTTP_PARSER AND HTTP_PARSER_FOUND AND HTTP_PARSER_VERSION_MAJOR EQUA
 	LIST(APPEND LIBGIT2_PC_LIBS "-lhttp_parser")
 ELSE()
 	MESSAGE(STATUS "http-parser version 2 was not found or disabled; using bundled 3rd-party sources.")
-	ADD_SUBDIRECTORY("${CMAKE_SOURCE_DIR}/deps/http-parser" "${CMAKE_BINARY_DIR}/deps/http-parser")
-	LIST(APPEND LIBGIT2_INCLUDES "${CMAKE_SOURCE_DIR}/deps/http-parser")
-	LIST(APPEND LIBGIT2_LIBS http-parser)
+	ADD_SUBDIRECTORY("${libgit2_SOURCE_DIR}/deps/http-parser" "${libgit2_BINARY_DIR}/deps/http-parser")
+	LIST(APPEND LIBGIT2_INCLUDES "${libgit2_SOURCE_DIR}/deps/http-parser")
+	LIST(APPEND LIBGIT2_OBJECTS "$<TARGET_OBJECTS:http-parser>")
 ENDIF()
 
 # Optional external dependency: zlib
@@ -210,9 +215,9 @@ IF (ZLIB_FOUND)
 	ENDIF()
 ELSE()
 	MESSAGE(STATUS "zlib was not found; using bundled 3rd-party sources." )
-	ADD_SUBDIRECTORY("${CMAKE_SOURCE_DIR}/deps/zlib" "${CMAKE_BINARY_DIR}/deps/zlib")
-	LIST(APPEND LIBGIT2_INCLUDES "${CMAKE_SOURCE_DIR}/deps/zlib")
-	LIST(APPEND LIBGIT2_LIBS zlib)
+	ADD_SUBDIRECTORY("${libgit2_SOURCE_DIR}/deps/zlib" "${libgit2_BINARY_DIR}/deps/zlib")
+	LIST(APPEND LIBGIT2_INCLUDES "${libgit2_SOURCE_DIR}/deps/zlib")
+	LIST(APPEND LIBGIT2_OBJECTS $<TARGET_OBJECTS:zlib>)
 ENDIF()
 
 # Optional external dependency: libssh2
@@ -294,9 +299,9 @@ ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 
 # Collect sourcefiles
 FILE(GLOB SRC_H
-	"${CMAKE_SOURCE_DIR}/include/git2.h"
-	"${CMAKE_SOURCE_DIR}/include/git2/*.h"
-	"${CMAKE_SOURCE_DIR}/include/git2/sys/*.h")
+	"${libgit2_SOURCE_DIR}/include/git2.h"
+	"${libgit2_SOURCE_DIR}/include/git2/*.h"
+	"${libgit2_SOURCE_DIR}/include/git2/sys/*.h")
 
 # On Windows use specific platform sources
 IF (WIN32 AND NOT CYGWIN)
@@ -330,37 +335,33 @@ ENDIF()
 
 CONFIGURE_FILE(features.h.in git2/sys/features.h)
 
-SET(GIT2INTERNAL_OBJECTS ${SRC_H} ${SRC_GIT2} ${SRC_OS} ${SRC_SSH} ${SRC_SHA1})
+SET(LIBGIT2_SOURCES ${SRC_H} ${SRC_GIT2} ${SRC_OS} ${SRC_SSH} ${SRC_SHA1})
 
-IF (CMAKE_VERSION VERSION_GREATER 2.8.7)
-	ADD_LIBRARY(git2internal OBJECT ${GIT2INTERNAL_OBJECTS})
-	IDE_SPLIT_SOURCES(git2internal)
-	SET(GIT2INTERNAL_OBJECTS $<TARGET_OBJECTS:git2internal>)
+ADD_LIBRARY(git2internal OBJECT ${LIBGIT2_SOURCES})
+IDE_SPLIT_SOURCES(git2internal)
+LIST(APPEND LIBGIT2_OBJECTS $<TARGET_OBJECTS:git2internal>)
 
-	IF (${CMAKE_VERSION} VERSION_LESS 2.8.12)
-		INCLUDE_DIRECTORIES(${LIBGIT2_INCLUDES})
-	ELSE()
-		TARGET_INCLUDE_DIRECTORIES(git2internal
-		    PRIVATE ${LIBGIT2_INCLUDES}
-		    PUBLIC ${CMAKE_SOURCE_DIR}/include)
-	ENDIF()
-ELSE()
+IF (${CMAKE_VERSION} VERSION_LESS 2.8.12)
 	INCLUDE_DIRECTORIES(${LIBGIT2_INCLUDES})
+ELSE()
+	TARGET_INCLUDE_DIRECTORIES(git2internal
+	    PRIVATE ${LIBGIT2_INCLUDES}
+	    PUBLIC ${libgit2_SOURCE_DIR}/include)
 ENDIF()
 
-SET(GIT2INTERNAL_OBJECTS ${GIT2INTERNAL_OBJECTS} PARENT_SCOPE)
+SET(LIBGIT2_OBJECTS ${LIBGIT2_OBJECTS} PARENT_SCOPE)
 SET(LIBGIT2_INCLUDES ${LIBGIT2_INCLUDES} PARENT_SCOPE)
 SET(LIBGIT2_LIBS ${LIBGIT2_LIBS} PARENT_SCOPE)
 SET(LIBGIT2_LIBDIRS ${LIBGIT2_LIBDIRS} PARENT_SCOPE)
 
 # Compile and link libgit2
 LINK_DIRECTORIES(${LIBGIT2_LIBDIRS})
-ADD_LIBRARY(git2 ${WIN_RC} ${GIT2INTERNAL_OBJECTS})
+ADD_LIBRARY(git2 ${WIN_RC} ${LIBGIT2_OBJECTS})
 TARGET_LINK_LIBRARIES(git2 ${LIBGIT2_LIBS})
 
-SET_TARGET_PROPERTIES(git2 PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-SET_TARGET_PROPERTIES(git2 PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-SET_TARGET_PROPERTIES(git2 PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+SET_TARGET_PROPERTIES(git2 PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${libgit2_BINARY_DIR})
+SET_TARGET_PROPERTIES(git2 PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${libgit2_BINARY_DIR})
+SET_TARGET_PROPERTIES(git2 PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${libgit2_BINARY_DIR})
 
 # Workaround for Cmake bug #0011240 (see http://public.kitware.com/Bug/view.php?id=11240)
 # Win64+MSVC+static libs = linker error
@@ -381,7 +382,7 @@ IF (SONAME)
 	ENDIF()
 ENDIF()
 STRING(REPLACE ";" " " LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS}")
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/libgit2.pc.in ${CMAKE_BINARY_DIR}/libgit2.pc @ONLY)
+CONFIGURE_FILE(${libgit2_SOURCE_DIR}/libgit2.pc.in ${libgit2_BINARY_DIR}/libgit2.pc @ONLY)
 
 IF (MSVC_IDE)
    # Precompiled headers
@@ -395,6 +396,6 @@ INSTALL(TARGETS git2
 	LIBRARY DESTINATION ${LIB_INSTALL_DIR}
 	ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
-INSTALL(FILES ${CMAKE_BINARY_DIR}/libgit2.pc DESTINATION ${LIB_INSTALL_DIR}/pkgconfig )
-INSTALL(DIRECTORY ${CMAKE_SOURCE_DIR}/include/git2 DESTINATION ${INCLUDE_INSTALL_DIR} )
-INSTALL(FILES ${CMAKE_SOURCE_DIR}/include/git2.h DESTINATION ${INCLUDE_INSTALL_DIR} )
+INSTALL(FILES ${libgit2_BINARY_DIR}/libgit2.pc DESTINATION ${LIB_INSTALL_DIR}/pkgconfig )
+INSTALL(DIRECTORY ${libgit2_SOURCE_DIR}/include/git2 DESTINATION ${INCLUDE_INSTALL_DIR} )
+INSTALL(FILES ${libgit2_SOURCE_DIR}/include/git2.h DESTINATION ${INCLUDE_INSTALL_DIR} )
